@@ -1,0 +1,14 @@
+Running Stress Test (A4)...
+Starting stress test: 500 concurrent requests for seat A4
+--- Results ---
+Total Requests: 500
+Success (Booked): 0
+Lock Failures (409): 500
+Pay Failures: 0
+Errors: 0
+❌ TEST FAILED: Success count is 0
+Running Idempotency Test (B8)...
+Starting Idempotency Test...
+Acquiring lock...
+❌ Failed to lock seat. Status: 409
+{ error: 'Seat is already booked' }

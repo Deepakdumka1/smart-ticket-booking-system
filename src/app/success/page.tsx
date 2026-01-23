@@ -9,9 +9,15 @@ import { useUser } from '@/hooks/useUser';
 function SuccessContent() {
     const params = useSearchParams();
     const seatId = params.get('seatId');
+    const seatIds = params.get('seatIds');
     const userId = useUser();
 
-    if (!seatId) {
+    // Determine seats to display
+    const displayedSeats = seatIds
+        ? seatIds.replace(/,/g, ', ')
+        : (seatId || 'Unknown');
+
+    if (!seatId && !seatIds) {
         return (
             <div className="min-h-screen grid place-items-center bg-slate-950 text-white">
                 <div className="text-center">
@@ -46,7 +52,7 @@ function SuccessContent() {
                         <div className="absolute top-0 right-0 p-4 opacity-10">
                             <Ticket className="w-24 h-24 text-white transform rotate-12" />
                         </div>
-                        <h2 className="text-xl font-bold text-white relative z-10">Cosmic Symphony</h2>
+                        <h2 className="text-xl font-bold text-white relative z-10"> Stand-up comedy</h2>
                         <p className="text-cyan-400 text-sm font-medium relative z-10">World Tour 2026</p>
                     </div>
 
@@ -65,9 +71,9 @@ function SuccessContent() {
                                 <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold block mb-1">Time</label>
                                 <div className="text-slate-800 font-bold text-lg">20:00</div>
                             </div>
-                            <div>
-                                <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold block mb-1">Seat</label>
-                                <div className="text-slate-800 font-bold text-lg">{seatId}</div>
+                            <div className="col-span-2">
+                                <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold block mb-1">Seats</label>
+                                <div className="text-slate-800 font-bold text-lg">{displayedSeats}</div>
                             </div>
                             <div>
                                 <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold block mb-1">Gate</label>

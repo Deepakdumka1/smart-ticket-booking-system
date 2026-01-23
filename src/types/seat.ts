@@ -7,4 +7,5 @@ export interface Seat {
     status: SeatStatus;
     userId?: string;
     lockedAt?: number;
+    bookedAt?: number;
 }

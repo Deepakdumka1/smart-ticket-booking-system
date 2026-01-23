@@ -1,0 +1,9 @@
+--- Verifying Payment UI Flow ---
+1. Locking seats...
+2. Fetching details for checkout: A10,A11
+   Found 2 valid locked seats for user.
+3. Submitting Payment...
+   Payment success: Booking confirmed
+4. Verifying DB state...
+   Found 2 booked seats.
+✅ UI Flow & Backend Logic Verified.

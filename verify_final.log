@@ -1,0 +1,35 @@
+Running Stress Test (A7)...
+Starting stress test: 500 concurrent requests for seat A7
+--- Results ---
+Total Requests: 500
+Success (Booked): 1
+Lock Failures (409): 499
+Pay Failures: 0
+Errors: 0
+✅ TEST PASSED: Exactly one successful booking.
+Running Idempotency Test (B10)...
+Starting Idempotency Test...
+Acquiring lock...
+Lock acquired.
+Sending 1st request...
+1st Response: 200
+1st Response Data: {
+  success: true,
+  message: 'Booking confirmed (idempotent)',
+  data: {
+    userId: 'user-idempotency-test',
+    timestamp: 1769113422690,
+    seatIds: [ 'B9' ]
+  }
+}
+Sending 2nd request (duplicate)...
+2nd Response: 200 {
+  success: true,
+  message: 'Booking confirmed (idempotent)',
+  data: {
+    userId: 'user-idempotency-test',
+    timestamp: 1769113422690,
+    seatIds: [ 'B9' ]
+  }
+}
+✅ TEST PASSED: Idempotency confirmed.

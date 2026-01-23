@@ -5,28 +5,31 @@ export default function Home() {
   const events = [
     {
       id: 1,
-      name: "Cosmic Symphony",
+      name: " Stand-up comedy",
       date: "Oct 24, 2026",
-      location: "Neo-Tokyo Dome",
-      image: "from-purple-600 to-blue-600",
+      location: " Delhi",
+      image: "/stand1.jpeg",
+      imageType: "file",
       price: "$150",
       status: "Selling Fast"
     },
     {
       id: 2,
-      name: "Neon Nights Festival",
+      name: " Arijit Singh Live",
       date: "Nov 12, 2026",
-      location: "Cyber Bay Arena",
-      image: "from-pink-500 to-rose-500",
+      location: "Ambience Mall,Delhi",
+      image: "/arijit.jpeg",
+      imageType: "file",
       price: "$85",
       status: "Available"
     },
     {
       id: 3,
-      name: "Quantum Leap",
+      name: "Fun NIght With Kapil",
       date: "Dec 05, 2026",
-      location: "Orbital Station One",
-      image: "from-cyan-500 to-teal-400",
+      location: "DU university ,Delhi",
+      image: "/kapil.jpeg",
+      imageType: "file",
       price: "$200",
       status: "Limited"
     }
@@ -91,9 +94,18 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {events.map((event) => (
             <div key={event.id} className="glass-card group hover:-translate-y-2 transition-transform duration-300 overflow-hidden">
-              {/* Image Placeholder */}
-              <div className={`h-48 w-full bg-gradient-to-br ${event.image} relative group-hover:scale-105 transition-transform duration-500`}>
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+              {/* Image */}
+              <div className="h-48 w-full relative group-hover:scale-105 transition-transform duration-500 overflow-hidden">
+                {event.imageType === 'file' ? (
+                  <img 
+                    src={event.image} 
+                    alt={event.name}
+                    className="w-full h-full object-contain bg-gradient-to-br from-slate-900/50 to-slate-800/50"
+                  />
+                ) : (
+                  <div className={`h-full w-full bg-gradient-to-br ${event.image}`} />
+                )}
+                <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
                 <div className="absolute top-4 right-4 px-3 py-1 bg-black/50 backdrop-blur-md rounded-full text-xs font-bold text-white border border-white/10">
                   {event.status}
                 </div>

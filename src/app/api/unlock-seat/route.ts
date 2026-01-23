@@ -22,32 +22,31 @@ export async function POST(request: Request) {
             );
         }
 
-        if (seat.status === 'booked') {
-            return NextResponse.json(
-                { error: 'Seat is already booked' },
-                { status: 409 }
-            );
-        }
-
-        // Try to acquire lock
-        // SET key value NX PX milliseconds
-        // Standard Redis atomic lock: SET resource user_id PX 60000 NX
+        // Verify lock ownership
         const lockKey = `lock:seat:${seatId}`;
-        const result = await redis.set(lockKey, userId, 'PX', 60000, 'NX');
+        const lockedBy = await redis.get(lockKey);
 
-        if (result !== 'OK') {
+        if (lockedBy && lockedBy !== userId) {
             return NextResponse.json(
-                { error: 'Seat is currently locked by another user' },
-                { status: 409 }
+                { error: 'Seat is locked by another user' },
+                { status: 403 }
             );
         }
+
+        if (!lockedBy) {
+            // Already unlocked, technically success for this operation
+            return NextResponse.json({ success: true, message: 'Seat already unlocked' });
+        }
+
+        // Remove lock
+        await redis.del(lockKey);
 
         // Sync with Supabase for Realtime
-        await updateSeatStatusAtomic(seatId, 'locked', ['available'], userId);
+        await updateSeatStatusAtomic(seatId, 'available', ['locked'], userId);
 
-        return NextResponse.json({ success: true, message: 'Seat locked secured' });
+        return NextResponse.json({ success: true, message: 'Seat unlocked' });
     } catch (error) {
-        console.error('Error locking seat:', error);
+        console.error('Error unlocking seat:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

@@ -1,0 +1,32 @@
+--- Verifying Payment UI Flow ---
+1. Locking seats...
+2. Fetching details for checkout: A5,A6
+   Found 0 valid locked seats for user.
+❌ Mismatch in locked seats.
+Full Details Response: {
+  "seats": [
+    {
+      "seat": {
+        "id": "A5",
+        "row": "A",
+        "number": 5,
+        "status": "booked",
+        "userId": "user_c4xqpj6ns"
+      },
+      "lockedBy": null,
+      "ttl": -2
+    },
+    {
+      "seat": {
+        "id": "A6",
+        "row": "A",
+        "number": 6,
+        "status": "booked",
+        "userId": "user_c4xqpj6ns",
+        "bookedAt": 1769112923783
+      },
+      "lockedBy": null,
+      "ttl": -2
+    }
+  ]
+}

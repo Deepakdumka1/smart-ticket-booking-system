@@ -75,12 +75,20 @@ class MockRedis {
       },
       pttl(key: string) {
         // Mock TTL not perfectly tracked, return estimate or fake
-        // Since we don't store startTime, we can't return accurate TTL in this simple mock
-        // For the demo, let's assume if it exists, return 50000 (abitrary) or just handle it in client
-        // Actually, let's just return a static valid TTL if key exists, else -2
         stack.push(async () => {
           if (self.store.has(key)) return [null, 60000];
           return [null, -2];
+        });
+        return this;
+      },
+      del(key: string) {
+        stack.push(async () => {
+          self.store.delete(key);
+          if (self.expiries.has(key)) {
+            clearTimeout(self.expiries.get(key)!);
+            self.expiries.delete(key);
+          }
+          return [null, 1];
         });
         return this;
       },
@@ -96,9 +104,9 @@ class MockRedis {
 }
 
 // Check environment to decide (Real vs Mock)
-// ideally we try to connect and failover, but simpler to just default mock if we know it's missing
-// FOR DEMO: Defaulting to Mock since user env lacked redis-server
-const shouldUseRealRedis = process.env.USE_REAL_REDIS === 'true';
+// Check environment to decide (Real vs Mock)
+// If REDIS_URL is provided, we try to use it.
+const shouldUseRealRedis = !!process.env.REDIS_URL;
 
 const getRedisUrl = () => {
   if (process.env.REDIS_URL) {
@@ -107,9 +115,15 @@ const getRedisUrl = () => {
   return 'redis://localhost:6379';
 };
 
-export const redis: any = shouldUseRealRedis
-  ? new Redis(getRedisUrl(), { lazyConnect: true })
-  : new MockRedis();
+const globalForRedis = global as unknown as { redis: any };
+
+export const redis =
+  globalForRedis.redis ||
+  (shouldUseRealRedis
+    ? new Redis(getRedisUrl(), { lazyConnect: true })
+    : new MockRedis());
+
+if (process.env.NODE_ENV !== 'production') globalForRedis.redis = redis;
 
 if (shouldUseRealRedis) {
   // @ts-ignore

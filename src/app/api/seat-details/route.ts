@@ -6,39 +6,69 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const seatId = searchParams.get('seatId');
+    const seatIdParam = searchParams.get('seatId');
+    const seatIdsParam = searchParams.get('seatIds');
 
-    if (!seatId) {
-        return NextResponse.json({ error: 'Missing seatId' }, { status: 400 });
+    let seatIds: string[] = [];
+
+    if (seatIdsParam) {
+        seatIds = seatIdsParam.split(',').filter(Boolean);
+    } else if (seatIdParam) {
+        seatIds = [seatIdParam];
     }
 
-    const seat = getSeat(seatId);
-    if (!seat) {
-        return NextResponse.json({ error: 'Seat not found' }, { status: 404 });
+    if (seatIds.length === 0) {
+        return NextResponse.json({ error: 'Missing seatIds' }, { status: 400 });
     }
 
-    const lockKey = `lock:seat:${seatId}`;
+    const seatsData = [];
 
-    // Pipeline to get value and TTL
+    // Use pipeline to fetch everything in one go for efficiency
     const pipe = redis.pipeline();
-    pipe.get(lockKey);
-    pipe.pttl(lockKey);
+
+    // First pass: validation and setup keys
+    for (const id of seatIds) {
+        const seat = await getSeat(id);
+        if (!seat) {
+            // If any seat is invalid, we could fail the whole batch or just skip.
+            // Failing is safer for consistency.
+            return NextResponse.json({ error: `Seat ${id} not found` }, { status: 404 });
+        }
+
+        const lockKey = `lock:seat:${id}`;
+        pipe.get(lockKey);
+        pipe.pttl(lockKey);
+        seatsData.push({ seat });
+    }
 
     const results = await pipe.exec();
-
-    // results[0] -> [err, value]
-    // results[1] -> [err, ttl]
 
     if (!results) {
         return NextResponse.json({ error: 'Redis error' }, { status: 500 });
     }
 
-    const [getError, lockedBy] = results[0];
-    const [ttlError, ttl] = results[1];
+    const responseSeats = [];
+
+    // Iterate results in pairs (get, pttl)
+    for (let i = 0; i < seatsData.length; i++) {
+        // ioredis pipeline results: [error, result]
+        const res1 = results[i * 2];
+        const res2 = results[i * 2 + 1];
+
+        // Ensure we handle potential nulls if pipeline failed partially (rare)
+        const lockedBy = res1 ? (res1[1] as string | null) : null;
+        const ttl = res2 ? (typeof res2[1] === 'number' ? res2[1] : -1) : -1;
+
+        const seatInfo = seatsData[i];
+
+        responseSeats.push({
+            seat: seatInfo.seat,
+            lockedBy: lockedBy,
+            ttl: ttl
+        });
+    }
 
     return NextResponse.json({
-        seat,
-        lockedBy,
-        ttl: typeof ttl === 'number' ? ttl : -1
+        seats: responseSeats
     });
 }

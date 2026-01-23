@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const seats = getSeats();
+        const seats = await getSeats();
 
         // Create keys for all seats to check locks
         const lockKeys = seats.map((seat) => `lock:seat:${seat.id}`);
@@ -38,7 +38,7 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching seats:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch seats' },
+            { error: `Failed to fetch seats: ${error instanceof Error ? error.message : String(error)}` },
             { status: 500 }
         );
     }

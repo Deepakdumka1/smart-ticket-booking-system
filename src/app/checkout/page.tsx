@@ -10,40 +10,58 @@ import { cn } from '@/lib/utils';
 function CheckoutContent() {
     const params = useSearchParams();
     const seatId = params.get('seatId');
+    const seatIds = params.get('seatIds');
     const userId = useUser();
     const router = useRouter();
 
     const [loading, setLoading] = useState(true);
-    const [data, setData] = useState<any>(null);
+    const [seatsData, setSeatsData] = useState<any[]>([]);
     const [paying, setPaying] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Calculate total
+    const pricePerSeat = 150;
+    const totalAmount = seatsData.length * pricePerSeat;
+
+    // Derived min TTL for display
+    const minTTL = seatsData.length > 0 ? Math.min(...seatsData.map(s => s.ttl)) : 0;
+
     useEffect(() => {
-        if (!seatId || !userId) {
-            if (!seatId) return;
+        if ((!seatId && !seatIds) || !userId) {
+            if (!seatId && !seatIds) return;
             return;
         }
 
         const checkStatus = async () => {
             try {
-                const res = await fetch(`/api/seat-details?seatId=${seatId}`);
-                const info = await res.json();
+                // Construct query
+                const query = seatIds ? `seatIds=${seatIds}` : `seatId=${seatId}`;
+                const res = await fetch(`/api/seat-details?${query}`);
+                const data = await res.json();
 
-                if (info.error) throw new Error(info.error);
+                if (data.error) throw new Error(data.error);
 
-                if (info.lockedBy !== userId) {
-                    alert("Session expired or seat lost.");
+                // data.seats is array
+                const validSeats = data.seats.filter((info: any) => {
+                    return info.lockedBy === userId && info.ttl > 0;
+                });
+
+                if (validSeats.length === 0) {
+                    alert("Session expired or seats lost.");
                     router.push('/seats');
                     return;
                 }
 
-                if (info.ttl <= 0) {
-                    alert("Time expired!");
+                if (validSeats.length < (data.seats.length)) {
+                    // Some seats were lost
+                    alert("Some seats were lost due to timeout.");
+                    // We could continue with partial, but let's just refresh to be safe or redirect
+                    // for now, redirect
                     router.push('/seats');
                     return;
                 }
 
-                setData(info);
+                setSeatsData(validSeats);
             } catch (err) {
                 console.error(err);
                 router.push('/seats');
@@ -53,24 +71,27 @@ function CheckoutContent() {
         };
 
         checkStatus();
-    }, [seatId, userId, router]);
+    }, [seatId, seatIds, userId, router]);
 
     const handlePayment = async () => {
         setPaying(true);
         setError(null);
 
+        // Extract IDs from current data
+        const currentIds = seatsData.map(s => s.seat.id);
+
         try {
             const res = await fetch('/api/pay', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ seatId, userId }),
+                body: JSON.stringify({ seatIds: currentIds, userId }),
             });
 
             const result = await res.json();
 
             if (!res.ok) throw new Error(result.error);
 
-            router.push(`/success?seatId=${seatId}`);
+            router.push(`/success?seatIds=${currentIds.join(',')}`);
         } catch (err: any) {
             setError(err.message);
             setPaying(false);
@@ -82,7 +103,7 @@ function CheckoutContent() {
         router.push('/seats');
     };
 
-    if (loading || !data) {
+    if (loading || seatsData.length === 0) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center text-white gap-4">
                 <Loader2 className="w-10 h-10 animate-spin text-cyan-400" />
@@ -106,12 +127,12 @@ function CheckoutContent() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-white tracking-tight">Checkout</h1>
-                            <p className="text-slate-400 text-sm">Review Ticket Details</p>
+                            <p className="text-slate-400 text-sm">{seatsData.length} Ticket{seatsData.length > 1 ? 's' : ''}</p>
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="text-xs uppercase text-slate-500 font-bold tracking-widest mb-1">Total</div>
-                        <div className="text-2xl font-bold text-white">$150.00</div>
+                        <div className="text-2xl font-bold text-white">${totalAmount.toFixed(2)}</div>
                     </div>
                 </header>
 
@@ -120,32 +141,76 @@ function CheckoutContent() {
                     <div className="p-5 bg-white/5 rounded-2xl border border-white/5 space-y-4">
                         <div className="flex items-center gap-3 text-white font-medium">
                             <Calendar className="w-5 h-5 text-purple-400" />
-                            <span>Cosmic Symphony 2026</span>
+                            <span> Stand-up comedy 2026</span>
                         </div>
                         <div className="flex items-center gap-3 text-slate-300 text-sm">
                             <Clock className="w-4 h-4 text-slate-500" />
-                            <span>Oct 24 • 20:00 • Neo-Tokyo Dome</span>
+                            <span>Oct 24 • 20:00 •  Delhi</span>
                         </div>
 
                         <div className="h-px bg-white/5 my-2" />
 
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Armchair className="w-5 h-5 text-yellow-400" />
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase">Seat</p>
-                                    <p className="text-white font-bold text-lg">{data.seat.id}</p>
+                        {seatsData.map((data, index) => (
+                            <div key={data.seat.id} className="flex items-center justify-between mb-2 last:mb-0">
+                                <div className="flex items-center gap-3">
+                                    <Armchair className="w-5 h-5 text-yellow-400" />
+                                    <div>
+                                        <p className="text-xs text-slate-500 uppercase">Seat {index + 1}</p>
+                                        <p className="text-white font-bold text-lg">{data.seat.id}</p>
+                                    </div>
+                                </div>
+                                <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
+                                    Reserved
                                 </div>
                             </div>
-                            <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
-                                Reserved
-                            </div>
-                        </div>
+                        ))}
+
                     </div>
 
                     {/* Timer */}
                     <div className="animate-pulse-slow">
-                        <Timer initialTimeMs={data.ttl} onExpire={handleExpire} />
+                        <Timer initialTimeMs={minTTL} onExpire={handleExpire} />
+                    </div>
+
+                    {/* Payment Form */}
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase tracking-widest">Cardholder Name</label>
+                            <input
+                                type="text"
+                                placeholder="John Doe"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase tracking-widest">Card Number</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="0000 0000 0000 0000"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-mono"
+                                />
+                                <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 pointer-events-none" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-400 font-bold uppercase tracking-widest">Expiry</label>
+                                <input
+                                    type="text"
+                                    placeholder="MM/YY"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all text-center"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-400 font-bold uppercase tracking-widest">CVC</label>
+                                <input
+                                    type="text"
+                                    placeholder="123"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all text-center"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {error && (
@@ -163,7 +228,7 @@ function CheckoutContent() {
                             {paying ? (
                                 <>Processing <Loader2 className="w-5 h-5 animate-spin" /></>
                             ) : (
-                                <>Pay $150.00 <CreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" /></>
+                                <>Pay ${totalAmount.toFixed(2)} <CreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" /></>
                             )}
                         </button>
 

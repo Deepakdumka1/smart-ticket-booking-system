@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { updateSeatStatusAtomic } from '@/lib/db';
 
 export async function POST(request: Request) {
     try {
@@ -11,6 +12,8 @@ export async function POST(request: Request) {
 
         if (lockedBy === userId) {
             await redis.del(lockKey);
+            // Sync with Supabase for Realtime
+            await updateSeatStatusAtomic(seatId, 'available', ['locked'], userId);
             return NextResponse.json({ success: true, message: 'Seat released' });
         }
 
